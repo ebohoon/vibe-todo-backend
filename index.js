@@ -22,22 +22,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// MongoDB 연결
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/todo';
-
-mongoose.connect(MONGODB_URI)
-  .then(() => {
-    console.log('✅ MongoDB 연결 성공');
-  })
-  .catch((error) => {
-    console.error('❌ MongoDB 연결 실패:', error.message);
-    console.error('\n해결 방법:');
-    console.error('1. MongoDB가 설치되어 있고 실행 중인지 확인하세요');
-    console.error('2. 또는 MongoDB Atlas를 사용하는 경우 환경변수로 연결 문자열을 설정하세요');
-    console.error('   예: $env:MONGODB_URI="mongodb+srv://username:password@cluster.mongodb.net/todo"');
-    // MongoDB 연결 실패해도 서버는 계속 실행 (API는 실패하지만 서버는 살아있음)
-  });
-
 // 기본 라우트
 app.get('/', (req, res) => {
   res.json({ 
@@ -69,9 +53,29 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 서버 시작
-app.listen(PORT, () => {
-  console.log(`🚀 서버가 포트 ${PORT}번에서 실행 중입니다.`);
-  console.log(`📍 접속 주소: http://localhost:${PORT}`);
-  console.log(`📝 할일 API: http://localhost:${PORT}/todos`);
-});
+// MongoDB 연결 및 서버 시작
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/todo';
+
+mongoose.connect(MONGODB_URI, {
+  serverSelectionTimeoutMS: 30000,
+  socketTimeoutMS: 45000,
+})
+  .then(() => {
+    console.log('✅ MongoDB 연결 성공');
+    
+    // MongoDB 연결 성공 후 서버 시작
+    app.listen(PORT, () => {
+      console.log(`🚀 서버가 포트 ${PORT}번에서 실행 중입니다.`);
+      console.log(`📍 접속 주소: http://localhost:${PORT}`);
+      console.log(`📝 할일 API: http://localhost:${PORT}/todos`);
+    });
+  })
+  .catch((error) => {
+    console.error('❌ MongoDB 연결 실패:', error.message);
+    console.error('MONGODB_URI:', MONGODB_URI ? '설정됨' : '설정되지 않음');
+    console.error('\n해결 방법:');
+    console.error('1. MongoDB Atlas Network Access에서 모든 IP 허용 (0.0.0.0/0)');
+    console.error('2. Heroku 환경변수에 MONGODB_URI 설정 확인');
+    console.error('3. MongoDB Atlas 연결 문자열이 올바른지 확인');
+    process.exit(1); // 연결 실패 시 앱 종료
+  });
